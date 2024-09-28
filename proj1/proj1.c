@@ -10,6 +10,7 @@
 #define ARG_LIST 0x2
 #define STR_END '\0'
 #define BUFFER_SIZE 1024
+#define NUM_QUADS 4
 
 char *filename = NULL;
 FILE *file;
@@ -44,9 +45,9 @@ int validateip(char **ip)
 			}
 		}
 	}
-	if (quad_count != 4)
+	if (quad_count != NUM_QUADS)
 		is_valid = 0;
-	return (is_valid & 1);
+	return (is_valid);
 }
 
 void usage(char *progname)
@@ -87,93 +88,103 @@ void parseargs(int argc, char *argv[])
 	}
 }
 
+int summinput(FILE *file)
+{
+	char *buffer = malloc(BUFFER_SIZE);
+	if (buffer == NULL)
+	{
+		fprintf(stderr, "error: cannot allocate memory\n");
+		return 1;
+	}
+	while (fgets(buffer, BUFFER_SIZE, file) != NULL)
+	{
+		input_lines++;
+		char *line = strdup(buffer);
+		char *line_ptr = line;
+		if (line == NULL)
+		{
+			fprintf(stderr, "error: cannot allocate memory\n");
+			return 1;
+		}
+		line[strcspn(line, "\n")] = 0;	// remove newline
+		if (validateip(&line))
+			valid_ips++;
+		else
+			invalid_ips++;
+		free(line_ptr);
+	}
+	printf("LINES: %d\n", input_lines);
+	printf("VALID: %d\n", valid_ips);
+	printf("INVALID: %d\n", invalid_ips);
+	free(buffer);
+	return 0;
+}
+
+int listinput(FILE *file)
+{
+	char *buffer = malloc(BUFFER_SIZE);
+	if (buffer == NULL)
+	{
+		fprintf(stderr, "error: cannot allocate memory\n");
+		return 1;
+	}
+	while (fgets(buffer, BUFFER_SIZE, file) != NULL)
+	{
+		input_lines++;
+		char *line = strdup(buffer);
+		if (line == NULL)
+		{
+			fprintf(stderr, "error: cannot allocate memory\n");
+			return 1;
+		}
+		line[strcspn(line, "\n")] = 0;	// remove newline
+		char *line_copy = strdup(line); // preserve original line
+		char *line_copy_ptr = line_copy;
+		char is_valid;
+		if (validateip(&line_copy))
+			is_valid = '+';
+		else
+			is_valid = '-';
+		printf("%s %c\n", line, is_valid);
+		free(line);
+		free(line_copy_ptr);
+	}
+	free(buffer);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	parseargs(argc, argv);
+	int error = 0;
 
 	if (filename == NULL)
 	{
 		fprintf(stderr, "error: filename required\n");
 	}
 
+	file = fopen(filename, "r");
+	if (file == NULL)
+	{
+		fprintf(stderr, "error: cannot open file %s\n", filename);
+		error = 1;
+	}
+
 	if (cmd_line_flags == ARG_SUMMARY)
 	{
 		// run in summary mode
-		file = fopen(filename, "r");
-		char *buffer = malloc(BUFFER_SIZE);
-		if (file == NULL)
-		{
-			fprintf(stderr, "error: cannot open file %s\n", filename);
-			exit(1);
-		}
-		if (buffer == NULL)
-		{
-			fprintf(stderr, "error: cannot allocate memory\n");
-			exit(1);
-		}
-		while (fgets(buffer, BUFFER_SIZE, file) != NULL)
-		{
-			input_lines++;
-			char *line = strdup(buffer);
-			if (line == NULL)
-			{
-				fprintf(stderr, "error: cannot allocate memory\n");
-				exit(1);
-			}
-			line[strlen(line) - 1] = STR_END; // remove newline
-			if (validateip(&line))
-				valid_ips++;
-			else
-				invalid_ips++;
-		}
-		printf("LINES: %d\n", input_lines);
-		printf("VALID: %d\n", valid_ips);
-		printf("INVALID: %d\n", invalid_ips);
-		fclose(file);
-		free(buffer);
-		exit(0);
+		error = summinput(file);
 	}
 	else if (cmd_line_flags == ARG_LIST)
 	{
 		// run in list mode
-		file = fopen(filename, "r");
-		char *buffer = malloc(BUFFER_SIZE);
-		if (file == NULL)
-		{
-			fprintf(stderr, "error: cannot open file %s\n", filename);
-			exit(1);
-		}
-		if (buffer == NULL)
-		{
-			fprintf(stderr, "error: cannot allocate memory\n");
-			exit(1);
-		}
-		while (fgets(buffer, BUFFER_SIZE, file) != NULL)
-		{
-			input_lines++;
-			char *line = strdup(buffer);
-			if (line == NULL)
-			{
-				fprintf(stderr, "error: cannot allocate memory\n");
-				exit(1);
-			}
-			line[strcspn(line, "\n")] = 0;	// remove newline
-			char *line_copy = strdup(line); // preserve original line
-			char is_valid;
-			if (validateip(&line_copy))
-				is_valid = '+';
-			else
-				is_valid = '-';
-			printf("%s %c\n", line, is_valid);
-		}
-		fclose(file);
-		free(buffer);
-		exit(0);
+		error = listinput(file);
 	}
 	else
 	{
 		fprintf(stderr, "error: specify exactly one of -s and -l \n");
-		exit(1);
+		error = 1;
 	}
-	exit(0);
+	fclose(file);
+	exit(error);
 }
