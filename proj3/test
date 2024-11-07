@@ -1,0 +1,11 @@
+#!/bin/bash
+make distclean
+make all
+echo "*********************TESTING*********************"
+PORT=`shuf -i 1025-65535 -n 1`
+./proj3 -p $PORT -t die -r ~/csds325/CSDS-325 &
+PID=$?
+echo -e -n "GET /proj3/Makefile HTTP/1.1\r\ntest\r\n\r\n" | nc localhost $PORT
+echo -e -n "SHUTDOWN die HTTP/1.1\r\nLINETWO: AAA\r\n\r\n" | nc localhost $PORT
+echo "*********************FINISH**********************"
+kill $PID
