@@ -1,0 +1,6 @@
+#!/bin/bash
+make distclean
+make all
+echo "*********************TESTING*********************"
+./proj4 -r ./tests/tcp-5.trace -i
+echo "*********************FINISH**********************"
