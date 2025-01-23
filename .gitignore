@@ -1,6 +1,4 @@
 .vscode
 *.tar.gz
 *.o
-/SocketSample
-/ClientServerSocketSample
 /proj5/data
