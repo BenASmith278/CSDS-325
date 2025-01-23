@@ -1,0 +1,6 @@
+All data files are available in this Google Drive Folder: https://drive.google.com/drive/folders/1oPbi2oh3ruJCLxL_T_GqDH-f3UtMeGu8?usp=sharing
+Raw output is available in txt files, and processed data is available in csv files.
+All files are named with the domain pinged, the location I pinged from, an indication if I used a vpn, and time of day.
+Traceroute output is available in [location]_[domain]_trace.txt files.
+Dig output is available in [domain]_dig.txt files.
+Raw output, processed output, traceroute output, and dig output are all separated into their own labeled folders.
