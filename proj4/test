@@ -2,5 +2,8 @@
 make distclean
 make all
 echo "*********************TESTING*********************"
-./proj4 -r ./tests/tcp-5.trace -i
+./proj4 -r ./tests/100-pkts.trace -m &> 100-pkts-m.out
+sort 100-pkts-m.out > 100-pkts-m.sort
+sort ./tests/100-pkts-m.out > ./tests/100-pkts-m.sort
+diff 100-pkts-m.sort ./tests/100-pkts-m.sort
 echo "*********************FINISH**********************"

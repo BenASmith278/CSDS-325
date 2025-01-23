@@ -29,6 +29,7 @@ struct tcp_node *matrix_head = NULL;
 // tcp connection structure
 // tcp connection node structure
 // linked list of tcp connection nodes
+// using a tree would be far more efficient. not implemented due to time constraints
 
 struct tcp_conn
 {
@@ -97,7 +98,7 @@ void print_info(int fd, struct pkt_info pkt)
 	while (next == 1)
 	{
 		pkts++;
-		if (pkt.ethh->ether_type == ETHERTYPE_IP)
+		if (pkt.ethh != NULL && pkt.ethh->ether_type == ETHERTYPE_IP)
 			ip_pkts++;
 		last_pkt = pkt;
 		next = next_packet(fd, &pkt);
@@ -112,6 +113,11 @@ void print_size(int fd, struct pkt_info pkt)
 
 	while (next == 1)
 	{
+		if (pkt.ethh == NULL || pkt.ethh->ether_type != ETHERTYPE_IP)
+		{
+			next = next_packet(fd, &pkt);
+			continue;
+		}
 		printf("%f %u ", pkt.now, pkt.caplen);
 		if (pkt.iph == NULL)
 			printf("- - - - -");
@@ -161,22 +167,22 @@ void print_tcp(int fd, struct pkt_info pkt)
 void make_matrix(struct tcp_conn conn)
 {
 	/* hash connection, search linked list
-		if in linked list, update count and volume
-		else add node */
-    char *key = malloc(strlen(conn.s_ip) + strlen(conn.d_ip) + 1);
-    if (key == NULL)
-    {
-        errexit("error: cannot hash connection");
-    }
+	   if in linked list, update count and volume and free strings
+	   else add node using existing strings */
+	char *key = malloc(strlen(conn.s_ip) + strlen(conn.d_ip) + 1);
+	if (key == NULL)
+	{
+		errexit("error: cannot hash connection");
+	}
 
-    /* Concatenate s_ip and d_ip to form the key */
-    strcpy(key, conn.s_ip);
-    strcat(key, conn.d_ip);
+	strcpy(key, conn.s_ip);
+	strcat(key, conn.d_ip);
+
 	if (matrix_head == NULL)
 	{
 		struct tcp_node *node = malloc(sizeof(struct tcp_node));
 		if (node == NULL)
-				errexit("error: could not allocate node");
+			errexit("error: could not allocate node");
 		node->conn = conn;
 		node->key = strdup(key);
 		node->next = NULL;
@@ -184,16 +190,16 @@ void make_matrix(struct tcp_conn conn)
 	}
 	else
 	{
-		struct tcp_node *node;
-		node = matrix_head;
+		struct tcp_node *node = matrix_head;
 		while (node != NULL && (strcmp(key, node->key) != 0))
 			node = node->next;
 
-		/* node found */
 		if (node != NULL)
 		{
 			node->conn.pkts++;
 			node->conn.vol += conn.vol;
+			free(conn.s_ip);
+			free(conn.d_ip);
 		}
 		else
 		{
@@ -218,18 +224,17 @@ void print_matrix(int fd, struct pkt_info pkt)
 		{
 			struct tcp_conn this_conn;
 			struct in_addr source, dest;
-			char *s_ip, *d_ip;
 
 			source.s_addr = pkt.iph->saddr;
-			s_ip = strdup(inet_ntoa(source));
-			if (s_ip == NULL)
+			this_conn.s_ip = strdup(inet_ntoa(source));
+			if (this_conn.s_ip == NULL)
 				errexit("error: could not process ip");
-			this_conn.s_ip = s_ip;
+
 			dest.s_addr = pkt.iph->daddr;
-			d_ip = strdup(inet_ntoa(dest));
-			if (d_ip == NULL)
+			this_conn.d_ip = strdup(inet_ntoa(dest));
+			if (this_conn.d_ip == NULL)
 				errexit("error: could not process ip");
-			this_conn.d_ip = d_ip;
+
 			this_conn.vol = pkt.iph->tot_len - ((uint8_t)pkt.iph->ihl * 4) - ((uint8_t)pkt.tcph->doff * 4);
 			this_conn.pkts = 1;
 
@@ -243,7 +248,6 @@ void print_matrix(int fd, struct pkt_info pkt)
 	struct tcp_node *old;
 	while (node != NULL)
 	{
-		// TODO: remove header length from vol
 		printf("%s %s %u %lu\n", node->conn.s_ip, node->conn.d_ip, node->conn.pkts, node->conn.vol);
 		old = node;
 		node = node->next;
