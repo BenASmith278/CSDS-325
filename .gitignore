@@ -1,4 +1,5 @@
 .vscode
+.venv
 *.tar.gz
 *.o
 /proj5/data
